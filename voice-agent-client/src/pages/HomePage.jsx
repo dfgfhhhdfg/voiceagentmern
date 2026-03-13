@@ -205,21 +205,17 @@ const SPEC_COLORS = {
 const specStyle = (s) => SPEC_COLORS[s] || { bg: T.surface, text: T.muted };
 
 /* ══════════════════════════════════════════════════════════════════════
-   DASHBOARD METEOR CANVAS  — pure Canvas 2D, zero dependencies
-   White/grey meteors only, depth layers, lightweight 60fps
+   DASHBOARD 3D BACKGROUND  — lightweight floating geometric orbs
+   Pure Canvas 2D, no dependencies, soft glowing nodes + connecting lines
 ══════════════════════════════════════════════════════════════════════ */
-function MeteorCanvas() {
+function DashboardBackground() {
   const canvasRef = useRef(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
-
     let animId;
-    const ANGLE = Math.PI / 5; /* ~36° steep diagonal */
-    const cos = Math.cos(ANGLE),
-      sin = Math.sin(ANGLE);
 
     const resize = () => {
       canvas.width = canvas.offsetWidth;
@@ -228,78 +224,258 @@ function MeteorCanvas() {
     resize();
     window.addEventListener("resize", resize);
 
-    /* 60 meteors across 3 depth layers */
-    const spawn = (randomY = false) => {
-      const depth = Math.random(); /* 0=far/tiny, 1=near/big */
-      const speed = 1.2 + depth * 5.5;
-      const tailLen = 40 + depth * 180;
-      const width = 0.4 + depth * 1.6;
-      const alpha = 0.08 + depth * 0.55;
-      const W = canvas.width,
-        H = canvas.height;
+    // Create floating nodes with depth simulation
+    const NODE_COUNT = 38;
+    const nodes = Array.from({ length: NODE_COUNT }, () => ({
+      x: Math.random() * canvas.width,
+      y: Math.random() * canvas.height,
+      z: 0.2 + Math.random() * 0.8, // depth: 0=far, 1=near
+      vx: (Math.random() - 0.5) * 0.25,
+      vy: (Math.random() - 0.5) * 0.18,
+      phase: Math.random() * Math.PI * 2,
+      freq: 0.4 + Math.random() * 0.6,
+    }));
+
+    // Rotating 3D icosahedron-like wireframe (projected)
+    const VERTS = 12;
+    const phi = (1 + Math.sqrt(5)) / 2;
+    const rawVerts = [
+      [-1, phi, 0],
+      [1, phi, 0],
+      [-1, -phi, 0],
+      [1, -phi, 0],
+      [0, -1, phi],
+      [0, 1, phi],
+      [0, -1, -phi],
+      [0, 1, -phi],
+      [phi, 0, -1],
+      [phi, 0, 1],
+      [-phi, 0, -1],
+      [-phi, 0, 1],
+    ].map(([x, y, z]) => {
+      const len = Math.sqrt(x * x + y * y + z * z);
+      return [x / len, y / len, z / len];
+    });
+    const edges = [
+      [0, 1],
+      [0, 5],
+      [0, 7],
+      [0, 10],
+      [0, 11],
+      [1, 5],
+      [1, 7],
+      [1, 8],
+      [1, 9],
+      [2, 3],
+      [2, 4],
+      [2, 6],
+      [2, 10],
+      [2, 11],
+      [3, 4],
+      [3, 6],
+      [3, 8],
+      [3, 9],
+      [4, 5],
+      [4, 9],
+      [4, 11],
+      [5, 9],
+      [5, 11],
+      [6, 7],
+      [6, 8],
+      [6, 10],
+      [7, 8],
+      [7, 10],
+      [8, 9],
+      [10, 11],
+    ];
+
+    let tick = 0;
+    const CONNECT_DIST = 180;
+
+    const project = (x, y, z, cx, cy, scale) => {
+      const fov = 2.8;
+      const pz = z + fov;
       return {
-        x: Math.random() * (W + H) /* start anywhere across top+right */,
-        y: randomY ? Math.random() * H : -Math.random() * H * 0.6,
-        speed,
-        tailLen,
-        width,
-        alpha,
-        depth,
+        px: cx + (x / pz) * scale,
+        py: cy + (y / pz) * scale,
+        scale: 1 / pz,
       };
     };
 
-    const meteors = Array.from({ length: 60 }, () => spawn(true));
+    const rotateY = (x, y, z, a) => [
+      x * Math.cos(a) + z * Math.sin(a),
+      y,
+      -x * Math.sin(a) + z * Math.cos(a),
+    ];
+    const rotateX = (x, y, z, a) => [
+      x,
+      y * Math.cos(a) - z * Math.sin(a),
+      y * Math.sin(a) + z * Math.cos(a),
+    ];
 
     const draw = () => {
       animId = requestAnimationFrame(draw);
+      tick += 0.004;
       const W = canvas.width,
         H = canvas.height;
-
-      /* Fade trail — thin transparent clear */
       ctx.clearRect(0, 0, W, H);
 
-      for (const m of meteors) {
-        /* Move */
-        m.x -= cos * m.speed;
-        m.y += sin * m.speed;
+      // ── Wireframe icosahedron (top-left area, large, very faint) ──
+      {
+        const cx = W * 0.12,
+          cy = H * 0.38,
+          scale = Math.min(W, H) * 0.22;
+        const ay = tick * 0.28,
+          ax = tick * 0.15;
+        const projected = rawVerts.map(([x, y, z]) => {
+          let [rx, ry, rz] = rotateY(x, y, z, ay);
+          [rx, ry, rz] = rotateX(rx, ry, rz, ax);
+          return project(rx, ry, rz, cx, cy, scale);
+        });
 
-        /* Recycle when off screen */
-        if (m.y > H + 20 || m.x < -20) {
-          Object.assign(m, spawn(false));
-          m.x = Math.random() * W + H * 0.3;
+        edges.forEach(([a, b]) => {
+          const pa = projected[a],
+            pb = projected[b];
+          const alpha = 0.04 + (pa.scale + pb.scale) * 2.5;
+          ctx.beginPath();
+          ctx.moveTo(pa.px, pa.py);
+          ctx.lineTo(pb.px, pb.py);
+          ctx.strokeStyle = `rgba(253,53,109,${Math.min(alpha, 0.14)})`;
+          ctx.lineWidth = 0.7;
+          ctx.stroke();
+        });
+
+        projected.forEach(({ px, py, scale: s }) => {
+          const r = 1.5 + s * 6;
+          const grd = ctx.createRadialGradient(px, py, 0, px, py, r * 2.5);
+          grd.addColorStop(0, `rgba(253,53,109,${Math.min(s * 18, 0.25)})`);
+          grd.addColorStop(1, `rgba(253,53,109,0)`);
+          ctx.beginPath();
+          ctx.arc(px, py, r * 2.5, 0, Math.PI * 2);
+          ctx.fillStyle = grd;
+          ctx.fill();
+        });
+      }
+
+      // ── Second smaller wireframe (bottom-right) ──
+      {
+        const cx = W * 0.88,
+          cy = H * 0.72,
+          scale = Math.min(W, H) * 0.14;
+        const ay = -tick * 0.2,
+          ax = tick * 0.22;
+        const projected = rawVerts.map(([x, y, z]) => {
+          let [rx, ry, rz] = rotateY(x, y, z, ay);
+          [rx, ry, rz] = rotateX(rx, ry, rz, ax);
+          return project(rx, ry, rz, cx, cy, scale);
+        });
+
+        edges.forEach(([a, b]) => {
+          const pa = projected[a],
+            pb = projected[b];
+          ctx.beginPath();
+          ctx.moveTo(pa.px, pa.py);
+          ctx.lineTo(pb.px, pb.py);
+          ctx.strokeStyle = `rgba(0,229,160,${Math.min((pa.scale + pb.scale) * 1.8, 0.1)})`;
+          ctx.lineWidth = 0.6;
+          ctx.stroke();
+        });
+      }
+
+      // ── Floating nodes: update + draw ──
+      nodes.forEach((n) => {
+        n.x += n.vx;
+        n.y += n.vy + Math.sin(tick * n.freq + n.phase) * 0.08;
+        if (n.x < -30) n.x = W + 30;
+        if (n.x > W + 30) n.x = -30;
+        if (n.y < -30) n.y = H + 30;
+        if (n.y > H + 30) n.y = -30;
+      });
+
+      // Connections between nearby nodes
+      for (let i = 0; i < nodes.length; i++) {
+        for (let j = i + 1; j < nodes.length; j++) {
+          const a = nodes[i],
+            b = nodes[j];
+          const dx = a.x - b.x,
+            dy = a.y - b.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < CONNECT_DIST) {
+            const alpha = (1 - dist / CONNECT_DIST) * 0.055 * ((a.z + b.z) / 2);
+            ctx.beginPath();
+            ctx.moveTo(a.x, a.y);
+            ctx.lineTo(b.x, b.y);
+            ctx.strokeStyle = `rgba(253,53,109,${alpha})`;
+            ctx.lineWidth = 0.5;
+            ctx.stroke();
+          }
         }
+      }
 
-        /* Tail: gradient line from transparent → bright white */
-        const tx = m.x + cos * m.tailLen;
-        const ty = m.y - sin * m.tailLen;
-        const grad = ctx.createLinearGradient(tx, ty, m.x, m.y);
-        grad.addColorStop(0, `rgba(255,255,255,0)`);
-        grad.addColorStop(0.7, `rgba(255,255,255,${m.alpha * 0.4})`);
-        grad.addColorStop(1, `rgba(255,255,255,${m.alpha})`);
-
+      // Draw nodes as soft glowing dots
+      nodes.forEach((n) => {
+        const r = 1.5 + n.z * 3;
+        const pulse = 0.7 + 0.3 * Math.sin(tick * n.freq * 1.5 + n.phase);
+        const grd = ctx.createRadialGradient(n.x, n.y, 0, n.x, n.y, r * 4);
+        const alpha = 0.12 + n.z * 0.28;
+        // Alternate color by depth band
+        const isEmerald = n.z < 0.4;
+        const col = isEmerald ? "0,229,160" : "253,53,109";
+        grd.addColorStop(0, `rgba(${col},${alpha * pulse})`);
+        grd.addColorStop(0.4, `rgba(${col},${alpha * 0.4 * pulse})`);
+        grd.addColorStop(1, `rgba(${col},0)`);
         ctx.beginPath();
-        ctx.moveTo(tx, ty);
-        ctx.lineTo(m.x, m.y);
-        ctx.strokeStyle = grad;
-        ctx.lineWidth = m.width;
-        ctx.lineCap = "round";
+        ctx.arc(n.x, n.y, r * 4, 0, Math.PI * 2);
+        ctx.fillStyle = grd;
+        ctx.fill();
+
+        // Hard dot center
+        ctx.beginPath();
+        ctx.arc(n.x, n.y, r * 0.8, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(${col},${0.35 * n.z * pulse})`;
+        ctx.fill();
+      });
+
+      // ── Subtle ring / torus hint (mid-right) ──
+      {
+        const cx = W * 0.82,
+          cy = H * 0.22;
+        const rOuter = Math.min(W, H) * 0.09;
+        const segments = 60;
+        const tiltX = Math.PI * 0.32;
+        const rotAngle = tick * 0.18;
+        ctx.beginPath();
+        for (let i = 0; i <= segments; i++) {
+          const a = (i / segments) * Math.PI * 2 + rotAngle;
+          const x3 = Math.cos(a) * rOuter;
+          const y3 = Math.sin(a) * rOuter;
+          // Apply tilt (simple projection)
+          const py = y3 * Math.cos(tiltX);
+          const screenX = cx + x3;
+          const screenY = cy + py;
+          if (i === 0) ctx.moveTo(screenX, screenY);
+          else ctx.lineTo(screenX, screenY);
+        }
+        ctx.closePath();
+        ctx.strokeStyle = `rgba(201,168,76,0.07)`;
+        ctx.lineWidth = 1;
         ctx.stroke();
 
-        /* Head glow — small radial circle */
-        const glow = ctx.createRadialGradient(
-          m.x,
-          m.y,
-          0,
-          m.x,
-          m.y,
-          m.width * 4,
-        );
-        glow.addColorStop(0, `rgba(255,255,255,${m.alpha})`);
-        glow.addColorStop(1, `rgba(255,255,255,0)`);
+        // Inner ring
         ctx.beginPath();
-        ctx.arc(m.x, m.y, m.width * 4, 0, Math.PI * 2);
-        ctx.fillStyle = glow;
-        ctx.fill();
+        const rInner = rOuter * 0.6;
+        for (let i = 0; i <= segments; i++) {
+          const a = (i / segments) * Math.PI * 2 - rotAngle * 1.3;
+          const x3 = Math.cos(a) * rInner;
+          const y3 = Math.sin(a) * rInner;
+          const py = y3 * Math.cos(tiltX);
+          if (i === 0) ctx.moveTo(cx + x3, cy + py);
+          else ctx.lineTo(cx + x3, cy + py);
+        }
+        ctx.closePath();
+        ctx.strokeStyle = `rgba(0,229,160,0.06)`;
+        ctx.lineWidth = 0.7;
+        ctx.stroke();
       }
     };
 
@@ -1197,7 +1373,7 @@ function LandingPage({ onLogin, onRegister, onDoctorLogin }) {
                     style={{
                       width: 64,
                       height: 64,
-                      background: `linear-gradient(135deg, ${T.accent}, ${ACCENT_DARK})`,
+                      // background: `linear-gradient(135deg, ${T.accent}, ${ACCENT_DARK})`,
                       borderRadius: 18,
                       display: "flex",
                       alignItems: "center",
@@ -1365,9 +1541,11 @@ function LandingPage({ onLogin, onRegister, onDoctorLogin }) {
                 letterSpacing: "-0.5px",
               }}
             >
-              <span style={{ color: T.text }}>World-class care,</span>
+              <span style={{ color: T.text }} className="grad">
+                World-class care,
+              </span>
               <br />
-              <span className="grad">built around your smile.</span>
+              <span>built around your smile.</span>
             </h2>
           </motion.div>
           <div
@@ -1475,9 +1653,11 @@ function LandingPage({ onLogin, onRegister, onDoctorLogin }) {
                 letterSpacing: "-0.5px",
               }}
             >
-              <span style={{ color: T.text }}>Confirmed appointment.</span>
+              <span style={{ color: T.text }} className="grad-cool">
+                Confirmed appointment.
+              </span>
               <br />
-              <span className="grad-cool">Just three steps away.</span>
+              <span>Just three steps away.</span>
             </h2>
           </motion.div>
           <div
@@ -1619,9 +1799,11 @@ function LandingPage({ onLogin, onRegister, onDoctorLogin }) {
                 letterSpacing: "-0.5px",
               }}
             >
-              <span style={{ color: T.text }}>Real patients.</span>
+              <span style={{ color: T.text }} className="grad">
+                Real patients.
+              </span>
               <br />
-              <span className="grad">Real transformations.</span>
+              <span>Real transformations.</span>
             </h2>
           </motion.div>
           <div
@@ -1809,9 +1991,11 @@ function LandingPage({ onLogin, onRegister, onDoctorLogin }) {
                 marginBottom: 36,
               }}
             >
-              <span style={{ color: T.text }}>Ready to transform</span>
+              <span style={{ color: T.text }} className="grad">
+                Ready to transform
+              </span>
               <br />
-              <span className="grad">your smile today?</span>
+              <span>your smile today?</span>
             </h2>
             <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
               {[
@@ -2013,9 +2197,6 @@ function LandingPage({ onLogin, onRegister, onDoctorLogin }) {
 
 /* ══════════════════════════════════════════════════════════════════════
    DRAGGABLE VOICE CALL WIDGET
-   — Collapsed mic FAB in bottom-right, expands to full voice-call panel
-   — Header bar is the drag handle; panel body stays interactive
-   — Smooth spring drag with viewport clamping
 ══════════════════════════════════════════════════════════════════════ */
 function DraggableVoiceWidget() {
   const [open, setOpen] = useState(false);
@@ -2030,7 +2211,6 @@ function DraggableVoiceWidget() {
   ]);
   const [inputVal, setInputVal] = useState("");
 
-  // Position: bottom-right offset from window edge
   const [pos, setPos] = useState({ right: 28, bottom: 28 });
   const [dragging, setDragging] = useState(false);
   const dragRef = useRef(null);
@@ -2041,7 +2221,6 @@ function DraggableVoiceWidget() {
     0.25, 0.5, 0.85, 1, 0.7, 0.9, 0.55, 0.4, 0.65, 0.3, 0.75, 0.5, 0.35, 0.6,
   ];
 
-  /* Call timer */
   useEffect(() => {
     if (callActive) {
       timerRef.current = setInterval(() => setCallTime((t) => t + 1), 1000);
@@ -2051,7 +2230,6 @@ function DraggableVoiceWidget() {
     return () => clearInterval(timerRef.current);
   }, [callActive]);
 
-  /* Auto-scroll messages */
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
@@ -2059,12 +2237,8 @@ function DraggableVoiceWidget() {
   const formatTime = (s) =>
     `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
 
-  /* Drag: only the header triggers drag */
   const onHeaderPointerDown = (e) => {
     if (e.target.closest("[data-no-drag]")) return;
-    // Convert right/bottom → left/top for delta math
-    const screenX = window.innerWidth - pos.right - (open ? 320 : 64);
-    const screenY = window.innerHeight - pos.bottom - (open ? 480 : 64);
     dragRef.current = {
       startPX: e.clientX,
       startPY: e.clientY,
@@ -2140,7 +2314,6 @@ function DraggableVoiceWidget() {
         touchAction: "none",
       }}
     >
-      {/* ── EXPANDED CALL PANEL ── */}
       <AnimatePresence>
         {open && (
           <motion.div
@@ -2159,7 +2332,6 @@ function DraggableVoiceWidget() {
               flexDirection: "column",
             }}
           >
-            {/* ── DRAG HANDLE / HEADER ── */}
             <div
               onPointerDown={onHeaderPointerDown}
               style={{
@@ -2176,7 +2348,6 @@ function DraggableVoiceWidget() {
               }}
             >
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                {/* Avatar with pulse */}
                 <div style={{ position: "relative", flexShrink: 0 }}>
                   <div
                     style={{
@@ -2214,7 +2385,6 @@ function DraggableVoiceWidget() {
                       />
                     </>
                   )}
-                  {/* Online dot */}
                   <span
                     style={{
                       position: "absolute",
@@ -2234,7 +2404,7 @@ function DraggableVoiceWidget() {
                       fontFamily: "'Syne',sans-serif",
                       fontSize: 13,
                       fontWeight: 800,
-                      color: T.text,
+                      color: "#ffffff",
                       lineHeight: 1,
                     }}
                   >
@@ -2254,12 +2424,10 @@ function DraggableVoiceWidget() {
                   </p>
                 </div>
               </div>
-              {/* Header actions */}
               <div
                 style={{ display: "flex", alignItems: "center", gap: 6 }}
                 data-no-drag=""
               >
-                {/* Drag grip indicator */}
                 <div
                   style={{
                     display: "flex",
@@ -2299,7 +2467,7 @@ function DraggableVoiceWidget() {
                   style={{
                     background: "none",
                     border: "none",
-                    color: T.muted,
+                    color: "#ffffff",
                     cursor: "pointer",
                     padding: "4px 6px",
                     fontSize: 13,
@@ -2312,7 +2480,6 @@ function DraggableVoiceWidget() {
               </div>
             </div>
 
-            {/* ── ACTIVE CALL VIEW ── */}
             {callActive ? (
               <div
                 style={{
@@ -2325,7 +2492,6 @@ function DraggableVoiceWidget() {
                   gap: 20,
                 }}
               >
-                {/* Big avatar */}
                 <div style={{ position: "relative" }}>
                   <div
                     style={{
@@ -2366,7 +2532,7 @@ function DraggableVoiceWidget() {
                       fontFamily: "'Syne',sans-serif",
                       fontSize: 18,
                       fontWeight: 800,
-                      color: T.text,
+                      color: "#ffffff",
                     }}
                   >
                     Sarah AI
@@ -2375,7 +2541,6 @@ function DraggableVoiceWidget() {
                     Call in progress · {formatTime(callTime)}
                   </p>
                 </div>
-                {/* Live waveform */}
                 <div
                   style={{
                     display: "flex",
@@ -2400,7 +2565,6 @@ function DraggableVoiceWidget() {
                     />
                   ))}
                 </div>
-                {/* Call controls */}
                 <div
                   style={{ display: "flex", gap: 14, alignItems: "center" }}
                   data-no-drag=""
@@ -2449,7 +2613,7 @@ function DraggableVoiceWidget() {
                       borderRadius: "50%",
                       border: `1px solid ${T.border}`,
                       background: "#1d1d21",
-                      color: T.muted,
+                      color: "#ffffff",
                       cursor: "pointer",
                       fontSize: 16,
                       display: "flex",
@@ -2463,7 +2627,6 @@ function DraggableVoiceWidget() {
               </div>
             ) : (
               <>
-                {/* ── CHAT MESSAGES ── */}
                 <div
                   style={{
                     flex: 1,
@@ -2523,7 +2686,7 @@ function DraggableVoiceWidget() {
                               : `1px solid ${T.border}`,
                           fontSize: 12.5,
                           lineHeight: 1.5,
-                          color: msg.from === "user" ? "white" : T.text,
+                          color: "#ffffff",
                         }}
                       >
                         {msg.text}
@@ -2533,7 +2696,6 @@ function DraggableVoiceWidget() {
                   <div ref={messagesEndRef} />
                 </div>
 
-                {/* ── QUICK PROMPTS ── */}
                 <div
                   style={{
                     padding: "0 12px 8px",
@@ -2565,7 +2727,7 @@ function DraggableVoiceWidget() {
                         whiteSpace: "nowrap",
                         background: "#24262e",
                         border: `1px solid ${T.border}`,
-                        color: T.muted,
+                        color: "#ffffff",
                         fontSize: 10.5,
                         padding: "5px 10px",
                         borderRadius: 20,
@@ -2576,11 +2738,9 @@ function DraggableVoiceWidget() {
                       }}
                       onMouseEnter={(e) => {
                         e.currentTarget.style.borderColor = T.accent + "55";
-                        e.currentTarget.style.color = T.text;
                       }}
                       onMouseLeave={(e) => {
                         e.currentTarget.style.borderColor = T.border;
-                        e.currentTarget.style.color = T.muted;
                       }}
                     >
                       {s}
@@ -2588,7 +2748,6 @@ function DraggableVoiceWidget() {
                   ))}
                 </div>
 
-                {/* ── TEXT INPUT ── */}
                 <div
                   style={{
                     padding: "10px 12px",
@@ -2612,7 +2771,7 @@ function DraggableVoiceWidget() {
                       border: `1px solid ${T.border}`,
                       borderRadius: 10,
                       padding: "8px 12px",
-                      color: T.text,
+                      color: "#ffffff",
                       fontSize: 12,
                       fontFamily: "'Space Grotesk',sans-serif",
                       outline: "none",
@@ -2640,7 +2799,6 @@ function DraggableVoiceWidget() {
                   </button>
                 </div>
 
-                {/* ── CALL BUTTON ── */}
                 <div
                   style={{ padding: "10px 12px 14px", flexShrink: 0 }}
                   data-no-drag=""
@@ -2675,7 +2833,6 @@ function DraggableVoiceWidget() {
         )}
       </AnimatePresence>
 
-      {/* ── COLLAPSED FAB ── */}
       {!open && (
         <motion.div
           onPointerDown={onHeaderPointerDown}
@@ -2728,14 +2885,13 @@ function DraggableVoiceWidget() {
 }
 
 /* ══════════════════════════════════════════════════════════════════════
-   DASHBOARD  — with 3D falling meteors background
+   DASHBOARD  — lightweight 3D geometric background
 ══════════════════════════════════════════════════════════════════════ */
 function Dashboard({ user, onLogout }) {
   const [doctors, setDoctors] = useState([]);
   const [docLoading, setDocLoading] = useState(true);
   const [docError, setDocError] = useState("");
   const [filter, setFilter] = useState("All");
-  const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
     fetchDoctors();
@@ -2781,10 +2937,10 @@ function Dashboard({ user, onLogout }) {
         position: "relative",
       }}
     >
-      {/* ══ 3D METEOR CANVAS — fills entire dashboard viewport ══ */}
-      <MeteorCanvas />
+      {/* ══ LIGHTWEIGHT 3D GEOMETRIC BACKGROUND ══ */}
+      <DashboardBackground />
 
-      {/* Subtle vignette over meteors so content stays readable */}
+      {/* Subtle vignette */}
       <div
         style={{
           position: "fixed",
@@ -2792,11 +2948,11 @@ function Dashboard({ user, onLogout }) {
           zIndex: 1,
           pointerEvents: "none",
           background:
-            "radial-gradient(ellipse 100% 100% at 50% 50%, transparent 0%, #1d1d2144 60%, #1d1d21BB 100%)",
+            "radial-gradient(ellipse 100% 100% at 50% 50%, transparent 0%, #1d1d2133 55%, #1d1d21AA 100%)",
         }}
       />
 
-      {/* Very light grid — still visible through meteor layer */}
+      {/* Very light grid */}
       <div
         style={{
           position: "fixed",
@@ -2808,7 +2964,7 @@ function Dashboard({ user, onLogout }) {
         }}
       />
 
-      {/* NAV — floating pill matching landing page style */}
+      {/* NAV */}
       <nav
         style={{
           position: "fixed",
@@ -2823,7 +2979,6 @@ function Dashboard({ user, onLogout }) {
           WebkitBackdropFilter: "blur(16px)",
           border: `1px solid ${T.border}80`,
           borderRadius: 20,
-          transition: "all .4s",
         }}
       >
         <div
@@ -2876,7 +3031,7 @@ function Dashboard({ user, onLogout }) {
               </p>
             </div>
           </div>
-          {/* Nav links */}
+          {/* Nav links — keep muted per original navbar style */}
           <div style={{ display: "flex", alignItems: "center", gap: 32 }}>
             {["Dashboard", "Specialists", "Appointments", "Settings"].map(
               (l) => (
@@ -2933,7 +3088,7 @@ function Dashboard({ user, onLogout }) {
               <div>
                 <p
                   style={{
-                    color: T.text,
+                    color: T.muted,
                     fontWeight: 600,
                     fontSize: 12,
                     lineHeight: 1,
@@ -2971,7 +3126,7 @@ function Dashboard({ user, onLogout }) {
           </div>
         </div>
       </nav>
-      {/* Spacer so fixed nav doesn't overlap content */}
+
       <div style={{ height: 84 }} />
 
       {/* CONTENT */}
@@ -2998,7 +3153,7 @@ function Dashboard({ user, onLogout }) {
             overflow: "hidden",
             backdropFilter: "blur(8px)",
           }}
-          >
+        >
           <div
             className="glow-orb"
             style={{
@@ -3010,7 +3165,7 @@ function Dashboard({ user, onLogout }) {
             }}
           />
           <div style={{ position: "relative", zIndex: 1 }}>
-            <p style={{ color: T.muted, fontSize: 13, marginBottom: 6 }}>
+            <p style={{ color: "#ffffff99", fontSize: 13, marginBottom: 6 }}>
               {greeting()},
             </p>
             <h1
@@ -3022,14 +3177,12 @@ function Dashboard({ user, onLogout }) {
                 marginBottom: 8,
               }}
             >
-              <span className="grad">
-                Welcome back, {user?.name?.split(" ")[0]}.
-              </span>{" "}
-              <span style={{ color: T.text }}>👋</span>
+              <span>Welcome back, {user?.name?.split(" ")[0]}.</span>{" "}
+              <span style={{ color: "#ffffff" }}>👋</span>
             </h1>
             <p
               style={{
-                color: T.muted,
+                color: "#ffffffBB",
                 fontSize: 14,
                 maxWidth: 480,
                 lineHeight: 1.8,
@@ -3076,7 +3229,7 @@ function Dashboard({ user, onLogout }) {
                 style={{
                   width: 64,
                   height: 64,
-                  background: `linear-gradient(135deg,${T.accent},${ACCENT_DARK})`,
+                  // background: `linear-gradient(135deg,${T.accent},${ACCENT_DARK})`,
                   borderRadius: 18,
                   display: "flex",
                   alignItems: "center",
@@ -3106,7 +3259,6 @@ function Dashboard({ user, onLogout }) {
                     fontSize: 20,
                     fontWeight: 800,
                   }}
-                  className="grad"
                 >
                   Talk to Sarah
                 </h2>
@@ -3127,7 +3279,7 @@ function Dashboard({ user, onLogout }) {
               </div>
               <p
                 style={{
-                  color: T.muted,
+                  color: "#ffffffBB",
                   fontSize: 13.5,
                   lineHeight: 1.8,
                   maxWidth: 460,
@@ -3150,7 +3302,7 @@ function Dashboard({ user, onLogout }) {
                     style={{
                       background: T.surface,
                       border: `1px solid ${T.border}`,
-                      color: T.muted,
+                      color: "#ffffff99",
                       fontSize: 11.5,
                       padding: "5px 12px",
                       borderRadius: 20,
@@ -3188,7 +3340,7 @@ function Dashboard({ user, onLogout }) {
           </div>
           <p
             style={{
-              color: T.muted,
+              color: "#ffffff66",
               fontSize: 12,
               marginTop: 20,
               paddingTop: 18,
@@ -3272,7 +3424,7 @@ function Dashboard({ user, onLogout }) {
                 <p
                   style={{
                     fontFamily: "'Syne',sans-serif",
-                    color: T.text,
+                    color: "#ffffff",
                     fontSize: 22,
                     fontWeight: 800,
                     lineHeight: 1,
@@ -3280,7 +3432,7 @@ function Dashboard({ user, onLogout }) {
                 >
                   {s.value}
                 </p>
-                <p style={{ color: T.muted, fontSize: 11, marginTop: 5 }}>
+                <p style={{ color: "#ffffff88", fontSize: 11, marginTop: 5 }}>
                   {s.label}
                 </p>
               </div>
@@ -3312,11 +3464,10 @@ function Dashboard({ user, onLogout }) {
                   fontWeight: 800,
                   letterSpacing: "-0.5px",
                 }}
-                className="grad-cool"
               >
                 Our Specialists
               </h2>
-              <p style={{ color: T.muted, fontSize: 12.5, marginTop: 4 }}>
+              <p style={{ color: "#ffffff88", fontSize: 12.5, marginTop: 4 }}>
                 {docLoading
                   ? "Loading…"
                   : `${filtered.length} specialist${filtered.length !== 1 ? "s" : ""} available`}
@@ -3336,7 +3487,7 @@ function Dashboard({ user, onLogout }) {
                       border: `1.5px solid ${filter === s ? T.accent : T.border}`,
                       background:
                         filter === s ? `${T.accent}15` : "transparent",
-                      color: filter === s ? T.accent : T.muted,
+                      color: filter === s ? T.accent : "#ffffff99",
                       cursor: "pointer",
                       transition: "all .2s",
                     }}
@@ -3455,7 +3606,7 @@ function Dashboard({ user, onLogout }) {
                       display: "block",
                     }}
                   />
-                  <p style={{ color: T.muted }}>
+                  <p style={{ color: "#ffffff88" }}>
                     No doctors found for this filter.
                   </p>
                 </div>
@@ -3523,7 +3674,7 @@ function Dashboard({ user, onLogout }) {
                         <div>
                           <h3
                             style={{
-                              color: T.text,
+                              color: "#ffffff",
                               fontFamily: "'Syne',sans-serif",
                               fontWeight: 700,
                               fontSize: 15,
@@ -3546,7 +3697,7 @@ function Dashboard({ user, onLogout }) {
                           flexDirection: "column",
                           gap: 7,
                           fontSize: 12.5,
-                          color: T.muted,
+                          color: "#ffffffAA",
                           marginBottom: 12,
                         }}
                       >
@@ -3614,7 +3765,7 @@ function Dashboard({ user, onLogout }) {
                         <p
                           style={{
                             fontSize: 12,
-                            color: T.muted,
+                            color: "#ffffffAA",
                             lineHeight: 1.7,
                             marginBottom: 14,
                             display: "-webkit-box",
