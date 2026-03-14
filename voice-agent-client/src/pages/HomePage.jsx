@@ -1399,9 +1399,8 @@ function LandingPage({ onLogin, onRegister, onDoctorLogin }) {
                     fontWeight: 800,
                     marginBottom: 4,
                   }}
-                  className="grad"
                 >
-                  Hi, I'm Sarah
+                  Hi, I'm Alex
                 </p>
                 <p style={{ color: T.muted, fontSize: 13, marginBottom: 24 }}>
                   Your AI-Powered Dental Concierge
@@ -2408,7 +2407,7 @@ function DraggableVoiceWidget() {
                       lineHeight: 1,
                     }}
                   >
-                    Sarah
+                    Alex
                   </p>
                   <p
                     style={{
@@ -2535,7 +2534,7 @@ function DraggableVoiceWidget() {
                       color: "#ffffff",
                     }}
                   >
-                    Sarah AI
+                    Alex AI
                   </p>
                   <p style={{ color: T.accent, fontSize: 12, marginTop: 4 }}>
                     Call in progress · {formatTime(callTime)}
@@ -3188,9 +3187,8 @@ function Dashboard({ user, onLogout }) {
                 lineHeight: 1.8,
               }}
             >
-              Sarah is live and ready. Use the chat widget in the bottom-right
-              to book, reschedule, or get instant answers to any dental
-              question.
+              Alex is live and ready. Use the chat widget in the bottom-right to
+              book, reschedule, or get instant answers to any dental question.
             </p>
           </div>
         </motion.div>
@@ -3260,7 +3258,7 @@ function Dashboard({ user, onLogout }) {
                     fontWeight: 800,
                   }}
                 >
-                  Talk to Sarah
+                  Talk to Alex
                 </h2>
                 <span
                   style={{
@@ -3286,7 +3284,7 @@ function Dashboard({ user, onLogout }) {
                   marginBottom: 14,
                 }}
               >
-                Ask Sarah to book, reschedule, or cancel appointments — check
+                Ask Alex to book, reschedule, or cancel appointments — check
                 availability, get dental advice, or find the right specialist.
                 All hands-free, all instant.
               </p>
@@ -3341,7 +3339,7 @@ function Dashboard({ user, onLogout }) {
           <p
             style={{
               color: "#ffffff66",
-              fontSize: 12,
+              fontSize: 15,
               marginTop: 20,
               paddingTop: 18,
               borderTop: `1px solid ${T.border}`,
