@@ -8,8 +8,8 @@ const userSchema = new mongoose.Schema({
   phone:    { type: String, default: '' },
   role:     { type: String, enum: ['patient', 'admin'], default: 'patient' },
 
-  // ── Sarah AI access — unlocked after Razorpay payment ──
-  hasSarahAccess: { type: Boolean, default: false },
+  // ── alex AI access — unlocked after Razorpay payment ──
+  hasalexAccess: { type: Boolean, default: false },
 
 }, { timestamps: true });
 
