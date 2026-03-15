@@ -69,7 +69,7 @@ export const useWebRTC = () => {
     });
 
     socketRef.current.on("assistant-response", (data) => {
-      console.log("🤖 Sarah:", data.text);
+      console.log("🤖 alex:", data.text);
       setAssistantMessage(data.text);
       speakText(data.text);
     });
@@ -106,7 +106,7 @@ export const useWebRTC = () => {
   const setSpeaking = useCallback((speaking) => {
     isSpeakingRef.current = speaking;
     setIsSpeaking(speaking);
-    socketRef.current?.emit("sarah-speaking", speaking);
+    socketRef.current?.emit("alex-speaking", speaking);
 
     if (!speaking) {
       bargeInRef.current = false;
@@ -130,7 +130,7 @@ export const useWebRTC = () => {
       try {
         window.speechSynthesis.cancel();
         setSpeaking(true);
-        console.log("🔇 Mic gated — Sarah speaking");
+        console.log("🔇 Mic gated — alex speaking");
 
         const utterance = new SpeechSynthesisUtterance(text);
         utterance.lang = "en-US";
@@ -221,13 +221,13 @@ export const useWebRTC = () => {
       processorRef.current.onaudioprocess = (event) => {
         if (!socketRef.current?.connected) return;
         const float32 = event.inputBuffer.getChannelData(0);
-        // If Sarah is speaking, only allow audio after a real barge-in.
+        // If alex is speaking, only allow audio after a real barge-in.
         if (isSpeakingRef.current && !bargeInRef.current) {
           let sum = 0;
           for (let i = 0; i < float32.length; i++)
             sum += float32[i] * float32[i];
           const rms = Math.sqrt(sum / float32.length);
-          // Require stronger, sustained speech to avoid cutting off Sarah
+          // Require stronger, sustained speech to avoid cutting off alex
           if (rms > 0.03) bargeFramesRef.current += 1;
           else bargeFramesRef.current = 0;
 
@@ -263,7 +263,7 @@ export const useWebRTC = () => {
 
       // ─────────────────────────────────────────────────────────────────────────
       // ADD THIS to useWebRTC.js (or wherever startCall is called in server.js)
-      // Pass patient's GPS coordinates through the socket so Sarah can use them.
+      // Pass patient's GPS coordinates through the socket so alex can use them.
       // ─────────────────────────────────────────────────────────────────────────
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
@@ -329,7 +329,7 @@ export const useWebRTC = () => {
     isSpeakingRef.current = false;
 
     if (socketRef.current?.connected) {
-      socketRef.current.emit("sarah-speaking", false);
+      socketRef.current.emit("alex-speaking", false);
       socketRef.current.emit("stop-voice-session");
     }
 
@@ -370,3 +370,4 @@ export const useWebRTC = () => {
     toggleMute,
   };
 };
+

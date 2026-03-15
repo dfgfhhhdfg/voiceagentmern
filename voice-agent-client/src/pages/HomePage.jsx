@@ -984,8 +984,8 @@ function LandingPage({ onLogin, onRegister, onDoctorLogin }) {
     },
     {
       icon: <FaMicrophoneAlt />,
-      title: "AI Booking — Sarah",
-      desc: "Skip the phone queue. Sarah is live 24/7 to confirm appointments, answer questions, and handle reschedules.",
+      title: "AI Booking — alex",
+      desc: "Skip the phone queue. alex is live 24/7 to confirm appointments, answer questions, and handle reschedules.",
     },
     {
       icon: <FaShieldAlt />,
@@ -1002,13 +1002,13 @@ function LandingPage({ onLogin, onRegister, onDoctorLogin }) {
     },
     {
       n: "02",
-      title: "Talk to Sarah",
-      desc: "Open the voice widget and speak naturally. Sarah understands what you need and handles the rest.",
+      title: "Talk to alex",
+      desc: "Open the voice widget and speak naturally. alex understands what you need and handles the rest.",
     },
     {
       n: "03",
       title: "You're confirmed",
-      desc: "A confirmation hits your inbox the moment Sarah locks in your slot. Zero back-and-forth.",
+      desc: "A confirmation hits your inbox the moment alex locks in your slot. Zero back-and-forth.",
     },
   ];
 
@@ -1023,13 +1023,13 @@ function LandingPage({ onLogin, onRegister, onDoctorLogin }) {
       name: "James T.",
       rating: 5,
       treat: "Orthodontics",
-      text: "Sarah handled everything without me lifting a finger. No hold music, no confusion — just a confirmed appointment and a great result.",
+      text: "alex handled everything without me lifting a finger. No hold music, no confusion — just a confirmed appointment and a great result.",
     },
     {
       name: "Ananya S.",
       rating: 5,
       treat: "Teeth Whitening",
-      text: "This doesn't feel like a typical dentist. It feels like a luxury brand that happens to do dentistry. Sarah is incredible.",
+      text: "This doesn't feel like a typical dentist. It feels like a luxury brand that happens to do dentistry. alex is incredible.",
     },
     {
       name: "Rahul D.",
@@ -1258,7 +1258,7 @@ function LandingPage({ onLogin, onRegister, onDoctorLogin }) {
                   marginBottom: 40,
                 }}
               >
-                Meet <strong style={{ color: T.text }}>Sarah</strong> — your
+                Meet <strong style={{ color: T.text }}>alex</strong> — your
                 always-on AI dental concierge. She books appointments, answers
                 your questions, and connects you with elite specialists, all
                 through natural conversation.
@@ -1299,7 +1299,7 @@ function LandingPage({ onLogin, onRegister, onDoctorLogin }) {
               </div>
             </motion.div>
 
-            {/* Sarah card */}
+            {/* alex card */}
             <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -1495,7 +1495,7 @@ function LandingPage({ onLogin, onRegister, onDoctorLogin }) {
                     fontSize: 14,
                   }}
                 >
-                  Talk to Sarah →
+                  Talk to alex →
                 </button>
               </div>
             </motion.div>
@@ -1921,7 +1921,7 @@ function LandingPage({ onLogin, onRegister, onDoctorLogin }) {
                   }}
                 >
                   Join SmileCare's network of elite practitioners. Set your
-                  availability once and let Sarah fill your schedule with
+                  availability once and let alex fill your schedule with
                   pre-qualified, ready-to-book patients — automatically.
                 </p>
               </div>
@@ -2167,7 +2167,7 @@ function LandingPage({ onLogin, onRegister, onDoctorLogin }) {
             </div>
           </div>
           <p style={{ color: T.muted, fontSize: 12 }}>
-            Powered by Sarah AI · The world's smartest dental concierge
+            Powered by alex AI · The world's smartest dental concierge
           </p>
           <div style={{ display: "flex", gap: 8 }}>
             {[FaFacebook, FaInstagram, FaWhatsapp].map((Icon, i) => (
@@ -2204,8 +2204,8 @@ function DraggableVoiceWidget() {
   const [muted, setMuted] = useState(false);
   const [messages, setMessages] = useState([
     {
-      from: "sarah",
-      text: "Hi! I'm Sarah, your dental concierge. How can I help you today?",
+      from: "alex",
+      text: "Hi! I'm alex, your dental concierge. How can I help you today?",
     },
   ]);
   const [inputVal, setInputVal] = useState("");
@@ -2293,7 +2293,7 @@ function DraggableVoiceWidget() {
       setMessages((m) => [
         ...m,
         {
-          from: "sarah",
+          from: "alex",
           text: "I've noted that. Let me check availability for you right away!",
         },
       ]);
@@ -2649,7 +2649,7 @@ function DraggableVoiceWidget() {
                         alignItems: "flex-end",
                       }}
                     >
-                      {msg.from === "sarah" && (
+                      {msg.from === "alex" && (
                         <div
                           style={{
                             width: 24,
@@ -2715,7 +2715,7 @@ function DraggableVoiceWidget() {
                             setMessages((m) => [
                               ...m,
                               {
-                                from: "sarah",
+                                from: "alex",
                                 text: "On it! Let me pull up the available slots for you.",
                               },
                             ]),
@@ -2763,7 +2763,7 @@ function DraggableVoiceWidget() {
                     value={inputVal}
                     onChange={(e) => setInputVal(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && sendMessage()}
-                    placeholder="Message Sarah…"
+                    placeholder="Message alex…"
                     style={{
                       flex: 1,
                       background: "#24262e",
@@ -2823,7 +2823,7 @@ function DraggableVoiceWidget() {
                     }}
                   >
                     <FaMicrophoneAlt style={{ fontSize: 12 }} /> Start voice
-                    call with Sarah
+                    call with alex
                   </button>
                 </div>
               </>
@@ -3193,7 +3193,7 @@ function Dashboard({ user, onLogout }) {
           </div>
         </motion.div>
 
-        {/* Sarah card */}
+        {/* alex card */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -3345,7 +3345,7 @@ function Dashboard({ user, onLogout }) {
               borderTop: `1px solid ${T.border}`,
             }}
           >
-            💡 Tap the chat bubble in the bottom-right corner to open Sarah —
+            💡 Tap the chat bubble in the bottom-right corner to open alex —
             she's always on.
           </p>
         </motion.div>
@@ -3852,3 +3852,4 @@ export default function HomePage({
     </>
   );
 }
+

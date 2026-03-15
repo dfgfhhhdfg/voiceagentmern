@@ -11,9 +11,10 @@ const paymentSchema = new mongoose.Schema({
   razorpaySignature: { type: String, default: null },
   amount:   { type: Number, required: true },   // in paise (e.g. 49900 = ₹499)
   currency: { type: String, default: 'INR' },
-  plan:     { type: String, default: 'sarah_access' },
+  plan:     { type: String, default: 'alex_access' },
   status:   { type: String, enum: ['created', 'paid', 'failed'], default: 'created' },
   paidAt:   { type: Date, default: null },
 }, { timestamps: true });
 
 module.exports = mongoose.model('Payment', paymentSchema);
+

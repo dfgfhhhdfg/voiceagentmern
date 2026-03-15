@@ -115,14 +115,14 @@ io.on('connection', async (socket) => {
   let deepgramConnection = null;
   let isDeepgramOpen     = false;
   let isCallActive       = false;
-  let isSarahSpeaking    = false;
+  let isalexSpeaking    = false;
   let sessionSampleRate  = 16000;
   let audioQueue         = [];
   let readyCheckInterval = null;
   let reconnectAttempts  = 0;
   let reconnectTimer     = null;
 
-  // ── FIX 1: keepAlive runs for the ENTIRE call, not just while Sarah speaks.
+  // ── FIX 1: keepAlive runs for the ENTIRE call, not just while alex speaks.
   // Deepgram 1011 fires when NO data arrives for ~10s — this happens during
   // TTS playback. Sending KeepAlive every 8s prevents it unconditionally.
   let keepAliveInterval  = null;
@@ -142,8 +142,8 @@ io.on('connection', async (socket) => {
 
   // Emit personalised greeting immediately on connect
   const greeting = patientContext?.name
-    ? `Hello ${patientContext.name}! Welcome back to SmileCare Dental. I'm Sarah. How can I help you today?`
-    : `Hello! Welcome to SmileCare Dental. I'm Sarah, your virtual assistant. How can I help you today?`;
+    ? `Hello ${patientContext.name}! Welcome back to SmileCare Dental. I'm alex. How can I help you today?`
+    : `Hello! Welcome to SmileCare Dental. I'm alex, your virtual assistant. How can I help you today?`;
   socket.emit('assistant-response', { text: greeting, isFinal: true, timestamp: new Date() });
 
   /* ----------------------------
@@ -206,12 +206,12 @@ io.on('connection', async (socket) => {
 
       /* onTranscript */
       async (transcriptData) => {
-        // FIX 2: Don't silently swallow transcripts while Sarah speaks.
+        // FIX 2: Don't silently swallow transcripts while alex speaks.
         // Just skip sending to AI — still reset reconnect counter.
         reconnectAttempts = 0;
         socket.emit('transcript', transcriptData);
 
-        if (isSarahSpeaking) return; // gate AI while Sarah speaks
+        if (isalexSpeaking) return; // gate AI while alex speaks
         if (!transcriptData.isFinal || !transcriptData.text.trim()) return;
 
         try {
@@ -238,7 +238,7 @@ io.on('connection', async (socket) => {
             isFinal:        true,
             timestamp:      new Date(),
           });
-          console.log(`🤖 Sarah: ${response.text}`);
+          console.log(`🤖 alex: ${response.text}`);
 
         } catch (err) {
           console.error('AI error:', err);
@@ -321,7 +321,7 @@ io.on('connection', async (socket) => {
   socket.on('start-voice-session', async (options = {}) => {
     sessionSampleRate = options.sampleRate || 16000;
     isCallActive      = true;
-    isSarahSpeaking   = false;
+    isalexSpeaking   = false;
     reconnectAttempts = 0;
 
     if (!patientContext && options.authToken) {
@@ -349,7 +349,7 @@ io.on('connection', async (socket) => {
     openDeepgramConnection();
 
     // FIX 4: Don't re-emit greeting on start-voice-session — it was already
-    // sent on socket connect. Sending it twice makes Sarah speak twice.
+    // sent on socket connect. Sending it twice makes alex speak twice.
   });
 
   /* ----------------------------
@@ -373,7 +373,7 @@ io.on('connection', async (socket) => {
      Audio Streaming
   ---------------------------- */
   socket.on('audio-chunk', (rawChunk) => {
-    if (!isCallActive || isSarahSpeaking) return;
+    if (!isCallActive || isalexSpeaking) return;
     const buffer = toBuffer(rawChunk);
     if (!buffer?.length) return;
     try {
@@ -389,17 +389,17 @@ io.on('connection', async (socket) => {
   });
 
   /* ----------------------------
-     Sarah Speaking Gate
+     alex Speaking Gate
      FIX 1: keepAlive now runs for the ENTIRE call.
-     sarah-speaking only controls the mic gate and audio queue.
+     alex-speaking only controls the mic gate and audio queue.
   ---------------------------- */
-  socket.on('sarah-speaking', (speaking) => {
-    isSarahSpeaking = speaking;
+  socket.on('alex-speaking', (speaking) => {
+    isalexSpeaking = speaking;
     if (speaking) {
-      console.log('🔇 Sarah speaking - mic gate closed');
+      console.log('🔇 alex speaking - mic gate closed');
       audioQueue = []; // discard any mic audio buffered before gate closed
     } else {
-      console.log('🎙️ Sarah finished speaking');
+      console.log('🎙️ alex finished speaking');
     }
     // keepAlive intentionally NOT touched here — it runs throughout the call
   });
@@ -410,7 +410,7 @@ io.on('connection', async (socket) => {
   socket.on('stop-voice-session', () => {
     console.log('🛑 Voice session stopped');
     isCallActive      = false;
-    isSarahSpeaking   = false;
+    isalexSpeaking   = false;
     reconnectAttempts = 0;
     closeDeepgram(); // this calls stopKeepAlive()
   });
@@ -421,7 +421,7 @@ io.on('connection', async (socket) => {
   socket.on('disconnect', (reason) => {
     console.log(`❌ Client disconnected: ${reason}`);
     isCallActive      = false;
-    isSarahSpeaking   = false;
+    isalexSpeaking   = false;
     reconnectAttempts = 0;
     closeDeepgram();
     conversationId = null;
@@ -467,3 +467,5 @@ process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('SIGINT',  () => shutdown('SIGINT'));
 
 module.exports = { app, server, io };
+
+

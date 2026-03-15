@@ -22,7 +22,7 @@ router.post('/create-order', protect, async (req, res) => {
       amount,
       currency,
       receipt: `receipt_${req.user._id}_${Date.now()}`,
-      notes: { userId: req.user._id.toString(), plan: 'sarah_access' },
+      notes: { userId: req.user._id.toString(), plan: 'alex_access' },
     });
 
     // Save pending payment record
@@ -31,7 +31,7 @@ router.post('/create-order', protect, async (req, res) => {
       razorpayOrderId: order.id,
       amount,
       currency,
-      plan: 'sarah_access',
+      plan: 'alex_access',
       status: 'created',
     });
 
@@ -52,7 +52,7 @@ router.post('/create-order', protect, async (req, res) => {
 });
 
 // ── POST /api/payment/verify ──────────────────────────────────────────────
-// Verifies Razorpay signature and unlocks Sarah for the user.
+// Verifies Razorpay signature and unlocks alex for the user.
 router.post('/verify', protect, async (req, res) => {
   try {
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
@@ -82,11 +82,11 @@ router.post('/verify', protect, async (req, res) => {
       }
     );
 
-    // Unlock Sarah on the user record
-    await User.findByIdAndUpdate(req.user._id, { hasSarahAccess: true });
+    // Unlock alex on the user record
+    await User.findByIdAndUpdate(req.user._id, { hasalexAccess: true });
 
-    console.log(`✅ Payment verified for user ${req.user.email} — Sarah unlocked`);
-    res.json({ success: true, message: 'Payment verified. Sarah is now unlocked!' });
+    console.log(`✅ Payment verified for user ${req.user.email} — alex unlocked`);
+    res.json({ success: true, message: 'Payment verified. alex is now unlocked!' });
   } catch (err) {
     console.error('Verify error:', err);
     res.status(500).json({ success: false, error: err.message });
@@ -94,11 +94,11 @@ router.post('/verify', protect, async (req, res) => {
 });
 
 // ── GET /api/payment/status ───────────────────────────────────────────────
-// Returns whether the current user has paid for Sarah access.
+// Returns whether the current user has paid for alex access.
 router.get('/status', protect, async (req, res) => {
   try {
-    const user = await User.findById(req.user._id).select('hasSarahAccess');
-    res.json({ success: true, hasSarahAccess: !!user?.hasSarahAccess });
+    const user = await User.findById(req.user._id).select('hasalexAccess');
+    res.json({ success: true, hasalexAccess: !!user?.hasalexAccess });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
